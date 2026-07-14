@@ -1,10 +1,11 @@
 #ifndef AK10_MIT_H
 #define AK10_MIT_H
 
-// CubeMars AK10-9 driver, MIT mode over CAN (Teensy 4.1 CAN2 = pin 0 CRX2 /
-// pin 1 CTX2). The command packing is identical to the known-good bench-test
-// sketch (teensy41_can1_can3_test.ino); this file adds feedback decoding so the
-// measured wheel velocity can be turned into odometry for SLAM.
+// CubeMars AK10-9 driver, MIT mode over CAN (STM32H753ZI FDCAN1 = PD0 CAN_RX /
+// PD1 CAN_TX, classic CAN 2.0 @ 1 Mbps). The command packing is identical to
+// the known-good Teensy bench-test sketch (teensy41_can1_can3_test.ino); this
+// file adds feedback decoding so the measured wheel velocity can be turned
+// into odometry for SLAM.
 //
 // MIT command frame (8 bytes), sent to the motor's command ID:
 //   [kp(12) | kd(12) | p_des(16) | v_des(12) | t_ff(12)]
@@ -14,11 +15,15 @@
 // velocity maps 1:1 to v_des and to the decoded feedback velocity.
 
 #include <Arduino.h>
-#include <FlexCAN_T4.h>
+#include <STM32_CAN.h>
 #include "config.h"
 
-// CAN2 on Teensy 4.1 (pins 0/1), matching the bench-test sketch.
-static FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> ak10_can;
+// FDCAN1 on PD0 (RX) / PD1 (TX). The pin-name constructor resolves the
+// peripheral from the pin map. PA11/PA12 (the other FDCAN1 mapping) are
+// deliberately avoided: they are the USB OTG FS pins. STM32_CAN mimics the
+// FlexCAN_T4 API (CAN_message_t, begin/setBaudRate/write/read), which is why
+// the rest of this file is unchanged from the Teensy version.
+static STM32_CAN ak10_can(PD0, PD1);
 
 inline uint32_t ak10_float_to_uint(float x, float x_min, float x_max, uint8_t bits)
 {
@@ -148,8 +153,11 @@ inline void ak10Begin()
 {
     ak10_can.begin();
     ak10_can.setBaudRate(CAN_BITRATE);
-    ak10_can.setMaxMB(16);
-    ak10_can.enableFIFO();
+    // No setMaxMB/enableFIFO here: those were FlexCAN(Teensy)-only. STM32_CAN
+    // receives through the FDCAN RX FIFO0 with an accept-all filter by default,
+    // which is what ak10Poll() drains. If motor status frames (extended IDs,
+    // e.g. 0x2968) ever stop arriving after a library update, add an explicit
+    // accept-all-extended filter here.
 }
 
 // OPTIONAL: send the MIT "enter motor mode" command (FF..FC). The bench-test

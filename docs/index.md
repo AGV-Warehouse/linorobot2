@@ -118,6 +118,8 @@ A Physical Robot should meet these requirements:
 - The robot has a supported lidar or a depth camera
 - The Microcontroller should be a Pico or Pico2 or supported version
 of ESP32. The Teensy microcontroller is deprecated but should still work.
+(This fork uses its own in-tree firmware for an ST Nucleo-H753ZI instead —
+see `firmware/README.md`.)
 - Differential drive, skid-steer or meccanum drive type. Ackermann steered
 robots are not yet supported.
 

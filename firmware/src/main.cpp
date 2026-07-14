@@ -1,8 +1,9 @@
-// linorobot2-compatible base firmware for Teensy 4.1
-//   2x CubeMars AK10-9 (MIT mode over CAN2) + optional MPU6050 + micro-ROS.
+// linorobot2-compatible base firmware for ST Nucleo-H753ZI (STM32H753ZI)
+//   2x CubeMars AK10-9 (MIT mode over FDCAN1) + optional MPU6050 + micro-ROS.
 //
-// Talks to the robot computer over USB serial via micro-ROS. The agent is
-// launched by linorobot2_bringup:
+// Talks to the robot computer over the ST-LINK Virtual COM Port (USART3) via
+// micro-ROS -- the same USB cable used for flashing. The agent is launched by
+// linorobot2_bringup:
 //   ros2 launch linorobot2_bringup bringup.launch.py
 //
 //   subscribes: cmd_vel         (geometry_msgs/Twist)
@@ -236,7 +237,8 @@ void destroyEntities()
 
 void setup()
 {
-    Serial.begin(921600); // USB CDC: baud is nominal, must just match the agent
+    Serial.begin(921600); // ST-LINK VCP (USART3): REAL baud, must match the
+                          // agent's --baudrate (micro_ros_baudrate in bringup)
     set_microros_serial_transports(Serial);
 
     ak10Begin();

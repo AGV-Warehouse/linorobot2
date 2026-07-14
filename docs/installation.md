@@ -157,6 +157,9 @@ build should complete without errors.
 
 #### (Deprecated) Teensy UDEV Rule
 
+> This fork's base MCU is an ST Nucleo-H753ZI flashed over ST-LINK — see
+> `firmware/README.md` for the ST-LINK udev rules instead.
+
 Download the udev rules from Teensy's website:
 
     wget https://www.pjrc.com/teensy/00-teensy.rules

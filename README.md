@@ -55,7 +55,7 @@ linorobot2 supports a broad range of 2D lidars and RGBD depth cameras out of the
 
 ### Build your own robot
 
-Detailed hardware documentation covering motor driver configuration and micro-ROS firmware for Teensy and compatible boards is at [linorobot2_hardware](https://github.com/linorobot/linorobot2_hardware). The firmware publishes odometry and IMU data over micro-ROS so the microcontroller integrates seamlessly as a ROS2 node.
+Detailed hardware documentation covering motor driver configuration and micro-ROS firmware for Teensy and compatible boards is at [linorobot2_hardware](https://github.com/linorobot/linorobot2_hardware). The firmware publishes odometry and IMU data over micro-ROS so the microcontroller integrates seamlessly as a ROS2 node. **This fork carries its own base firmware in [`firmware/`](firmware/) for an ST Nucleo-H753ZI (STM32H753ZI) driving CubeMars AK10-9 motors — see [`firmware/README.md`](firmware/README.md).**
 
 ![Microcontroller architecture](docs/assets/microcontroller_architecture.png)
 
@@ -66,8 +66,8 @@ All commands below run on the robot computer unless noted. SLAM and navigation l
 ### Physical Robot
 
 This is the exact terminal-by-terminal sequence for **this robot** (Jetson +
-Teensy 4.1 base over micro-ROS, MPU6050 IMU direct on the Jetson's I2C bus 7,
-RPLIDAR A3). **Every terminal must source ROS first:**
+Nucleo-H753ZI (STM32H753) base over micro-ROS, MPU6050 IMU direct on the
+Jetson's I2C bus 7, RPLIDAR A3). **Every terminal must source ROS first:**
 
 ```bash
 source /opt/ros/jazzy/setup.bash
@@ -173,7 +173,7 @@ Wait for the micro-ROS agent to print `session established` before continuing.
 ```bash
 ros2 launch mpu6050_imu imu.launch.py i2c_bus:=7 i2c_addr:=104
 ```
-The IMU is wired directly to the Jetson, **not** through the Teensy, so it is a
+The IMU is wired directly to the Jetson, **not** through the Nucleo, so it is a
 separate launch. Note `i2c_addr:=104` (decimal 0x68) — **no trailing period**,
 or it fails with `invalid literal for int()`.
 

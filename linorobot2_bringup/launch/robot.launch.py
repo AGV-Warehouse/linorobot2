@@ -34,12 +34,12 @@
 #   rf2o_laser_odometry --(odom->base_footprint)--> motion from scan matching
 #   mpu6050_imu --> /imu/data                       (published, not owning TF)
 #   slam_toolbox --(map->odom)--> builds the map
-#   micro_ros_agent <--serial--> Teensy 4.1         (bridges /cmd_vel to motors)
+#   micro_ros_agent <--serial--> Nucleo-H753ZI      (bridges /cmd_vel to motors)
 #   map_viewer.py --> http://<robot-ip>:8000        (live map as a web page)
 #
 # The micro-ROS agent is what lets teleop actually move the robot: teleop_keyboard.py
-# publishes /cmd_vel, the agent forwards it over serial to the Teensy firmware
-# (controlCallback in main.cpp), which drives the AK10-9 motors. The Teensy only
+# publishes /cmd_vel, the agent forwards it over serial to the Nucleo firmware
+# (controlCallback in main.cpp), which drives the AK10-9 motors. The Nucleo only
 # publishes odom/unfiltered as a TOPIC (not a TF), so it does not fight rf2o for
 # odom->base_footprint. Set micro_ros:=false if you push the robot by hand instead.
 #
@@ -104,12 +104,13 @@ def generate_launch_description():
         DeclareLaunchArgument(
             name='base_serial_port',
             default_value='/dev/ttyACM0',
-            description='Teensy micro-ROS serial port'
+            description='Base MCU (Nucleo-H753ZI ST-LINK VCP) micro-ROS serial port'
         ),
         DeclareLaunchArgument(
             name='micro_ros_baudrate',
             default_value='921600',
-            description='micro-ROS serial baudrate (must match the Teensy firmware)'
+            description='micro-ROS serial baudrate (must match the Nucleo firmware; '
+                        'real UART baud on the ST-LINK VCP)'
         ),
         DeclareLaunchArgument(
             name='map_viewer',
@@ -134,7 +135,7 @@ def generate_launch_description():
                         'than slam_toolbox defaults). Override to use your own.'
         ),
 
-        # micro-ROS agent: bridges the Teensy firmware to ROS 2 over serial, so
+        # micro-ROS agent: bridges the Nucleo firmware to ROS 2 over serial, so
         # teleop's /cmd_vel reaches the motors (and odom/unfiltered + /imu come back).
         Node(
             condition=IfCondition(LaunchConfiguration('micro_ros')),

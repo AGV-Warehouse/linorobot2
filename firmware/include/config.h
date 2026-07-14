@@ -9,7 +9,8 @@
 
 // ---------------------------------------------------------------------------
 // AK10-9 actuators (CubeMars, MIT mode over CAN). Values copied from the
-// known-good bench-test sketch (teensy41_can1_can3_test.ino).
+// known-good bench-test sketch (teensy41_can1_can3_test.ino -- historical,
+// from the original Teensy 4.1 base; the values are board-independent).
 //
 // MOTOR1 = LEFT wheel, MOTOR2 = RIGHT wheel.
 // Command IDs are the MIT command frame IDs (extended), one per motor.
