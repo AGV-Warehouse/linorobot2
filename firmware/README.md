@@ -6,8 +6,8 @@ linorobot2 base controller for two **CubeMars AK10-9** motors driven in
 
 > Migrated from the original Teensy 4.1 base (git history has the old
 > version). Same control logic and topic contract; only the board, the CAN
-> backend (FlexCAN_T4 → STM32_CAN/FDCAN), and the flash/serial plumbing
-> changed.
+> backend (FlexCAN_T4 → in-house HAL FDCAN wrapper, `include/fdcan_h7.h`),
+> and the flash/serial plumbing changed.
 
 | Topic | Direction | Type | Purpose |
 |-------|-----------|------|---------|

@@ -15,15 +15,14 @@
 // velocity maps 1:1 to v_des and to the decoded feedback velocity.
 
 #include <Arduino.h>
-#include <STM32_CAN.h>
+#include "fdcan_h7.h"
 #include "config.h"
 
-// FDCAN1 on PD0 (RX) / PD1 (TX). The pin-name constructor resolves the
-// peripheral from the pin map. PA11/PA12 (the other FDCAN1 mapping) are
-// deliberately avoided: they are the USB OTG FS pins. STM32_CAN mimics the
-// FlexCAN_T4 API (CAN_message_t, begin/setBaudRate/write/read), which is why
-// the rest of this file is unchanged from the Teensy version.
-static STM32_CAN ak10_can(PD0, PD1);
+// FDCAN1 on PD0 (RX) / PD1 (TX) -- pins and peripheral are fixed inside
+// fdcan_h7.h. The wrapper mimics the FlexCAN_T4 API (CAN_message_t,
+// begin/setBaudRate/write/read), which is why the rest of this file is
+// unchanged from the Teensy version.
+static FdCanH7 ak10_can;
 
 inline uint32_t ak10_float_to_uint(float x, float x_min, float x_max, uint8_t bits)
 {
@@ -153,11 +152,10 @@ inline void ak10Begin()
 {
     ak10_can.begin();
     ak10_can.setBaudRate(CAN_BITRATE);
-    // No setMaxMB/enableFIFO here: those were FlexCAN(Teensy)-only. STM32_CAN
-    // receives through the FDCAN RX FIFO0 with an accept-all filter by default,
-    // which is what ak10Poll() drains. If motor status frames (extended IDs,
-    // e.g. 0x2968) ever stop arriving after a library update, add an explicit
-    // accept-all-extended filter here.
+    // No setMaxMB/enableFIFO here: those were FlexCAN(Teensy)-only. The FDCAN
+    // wrapper routes all frames (std + extended, e.g. the motors' 0x29xx
+    // status ids) into RX FIFO0 via an accept-all global filter, which is
+    // what ak10Poll() drains.
 }
 
 // OPTIONAL: send the MIT "enter motor mode" command (FF..FC). The bench-test
