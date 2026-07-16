@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "stm32-freertos-developer": {
+      "source": "2939387245/agent-skill_stm32-freertos",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "3d9e23c797bdfc31e5d36bf28e72f96f03d83783311bee36a0e2f582e8a852f9"
+    }
+  }
+}
