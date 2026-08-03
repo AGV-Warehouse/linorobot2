@@ -159,6 +159,28 @@ reactivate the stranded Nav2 nodes:
 for n in planner_server behavior_server velocity_smoother collision_monitor bt_navigator waypoint_follower route_server docking_server; do ros2 lifecycle set /$n activate; done
 ```
 
+#### Web fleet app (rosbridge)
+
+`robot.launch.py` also starts a **rosbridge WebSocket server on port 9090**
+(`rosbridge:=false` to disable), which the AGV fleet web app (the `agvapp`
+repo) uses to control the robot and show its live position — no RViz and no
+SSH needed on the operator's tablet:
+
+1. Start the robot as usual (`robot.launch.py slam:=false`, then
+   `navigation.launch.py` — same as the 3-command sequence above).
+2. Serve the app from any machine on the LAN
+   (`python3 -m http.server 5173` in the agvapp folder) and open
+   `http://<app-host>:5173?ros=ws://<robot-ip>:9090`. Plain http is required —
+   https would block the `ws://` connection.
+3. Set the initial pose from the app ("Tap: Set pose" on the map) within ~30 s
+   of starting navigation — same rule as the map-viewer flow above.
+
+The app publishes `/goal_pose` (what RViz's Nav2 Goal tool uses), streams
+`/cmd_vel` for manual jog (the firmware's 200 ms watchdog stops the robot if
+the stream dies), and cancels goals through the Nav2 cancel service. Make sure
+port 9090 is reachable through any firewall. Full topic contract:
+`agvapp/docs/ros-bridge-contract.md`.
+
 #### Step-by-step (manual) sequence
 
 Start the terminals in order (1 → 6).

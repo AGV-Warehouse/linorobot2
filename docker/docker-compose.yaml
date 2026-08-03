@@ -93,6 +93,13 @@ services:
       rviz:=${RVIZ:-false}
       sim:=${SIM:-false}
 
+  rosbridge:
+    container_name: rosbridge
+    extends: base
+    command: >
+      ros2 launch rosbridge_server rosbridge_websocket_launch.xml
+      port:=${ROSBRIDGE_PORT:-9090}
+
   save-map:
     container_name: save-map
     extends: base

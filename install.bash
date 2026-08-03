@@ -339,6 +339,8 @@ function install_linorobot2_pkg {
         then
             git clone -b $ROS_DISTRO https://github.com/linorobot/linorobot2 src/linorobot2
     fi
+    # rosbridge exposes the ROS graph over WebSocket (port 9090) for the AGV web app
+    sudo apt install -y ros-$ROS_DISTRO-rosbridge-suite
     cd $WORKSPACE/src/linorobot2/linorobot2_gazebo
     touch COLCON_IGNORE
     cd $WORKSPACE

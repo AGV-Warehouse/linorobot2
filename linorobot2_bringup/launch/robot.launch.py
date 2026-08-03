@@ -63,6 +63,7 @@ from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node, SetRemap
+from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 
@@ -126,6 +127,17 @@ def generate_launch_description():
             default_value='true',
             description='Start slam_toolbox (mapping). Set false when running '
                         'navigation, where AMCL owns map->odom localization.'
+        ),
+        DeclareLaunchArgument(
+            name='rosbridge',
+            default_value='true',
+            description='Serve the ROS graph over WebSocket on port 9090 for the '
+                        'AGV web app (map_viewer already owns port 8000)'
+        ),
+        DeclareLaunchArgument(
+            name='rosbridge_port',
+            default_value='9090',
+            description='rosbridge WebSocket port'
         ),
         DeclareLaunchArgument(
             name='slam_params_file',
@@ -256,6 +268,29 @@ def generate_launch_description():
         ExecuteProcess(
             condition=IfCondition(LaunchConfiguration('map_viewer')),
             cmd=['python3', LaunchConfiguration('map_viewer_path')],
+            output='screen',
+        ),
+
+        # rosbridge: WebSocket access to the ROS graph (port 9090) for the AGV
+        # fleet web app -- /amcl_pose, /map, /cmd_vel, /goal_pose and the Nav2
+        # cancel service all flow through here. Off with rosbridge:=false.
+        Node(
+            condition=IfCondition(LaunchConfiguration('rosbridge')),
+            package='rosbridge_server',
+            executable='rosbridge_websocket',
+            name='rosbridge_websocket',
+            output='screen',
+            parameters=[{
+                'port': ParameterValue(LaunchConfiguration('rosbridge_port'), value_type=int),
+                'address': '',
+                'call_services_in_new_thread': True,
+            }],
+        ),
+        Node(
+            condition=IfCondition(LaunchConfiguration('rosbridge')),
+            package='rosapi',
+            executable='rosapi_node',
+            name='rosapi',
             output='screen',
         ),
     ])
