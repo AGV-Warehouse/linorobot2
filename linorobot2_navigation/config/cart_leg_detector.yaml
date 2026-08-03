@@ -1,0 +1,36 @@
+cart_leg_detector:
+  ros__parameters:
+    # ---- Cart geometry: MEASURE THE REAL CART (Phase 0 checklist in
+    # UNDER_CART_DOCKING.md) and replace these placeholders. All values in
+    # meters, leg spacings measured center-of-leg to center-of-leg.
+    rect_length: 0.90        # longer leg-to-leg spacing
+    rect_width: 0.60         # shorter leg-to-leg spacing
+    leg_diameter: 0.04       # leg cross-section as the lidar sees it
+
+    # ---- Matching tolerances
+    dim_tolerance: 0.03      # rectangle side/diagonal match tolerance
+    cluster_gap: 0.06        # new cluster when consecutive points jump more
+    min_points_per_leg: 3    # clusters with fewer returns are noise
+    min_matched_legs: 2      # 2 = works during entry occlusion; raise to 3
+                             # for stricter detection when gating is off
+    max_range: 3.0           # ignore returns beyond this (m)
+
+    # ---- Gating (the guard against look-alike leg patterns)
+    # Detections farther than gate_radius from the last accepted pose (or
+    # the expected pose below) are rejected. Set 0.0 ONLY for offline bag
+    # exploration.
+    gate_radius: 0.5
+    # Seed pose before the first detection. Set expected_dock_frame to ''
+    # to disable, 'map' to give the pose in map coordinates (transformed via
+    # TF), or 'odom' to give it directly in the output frame. Phase 3 wires
+    # this to the dock database entry.
+    expected_dock_frame: ''
+    expected_dock_x: 0.0
+    expected_dock_y: 0.0
+    expected_dock_yaw: 0.0
+
+    # ---- Output
+    filter_alpha: 0.3        # EMA weight of a new detection (1.0 = no filter)
+    detection_timeout: 1.0   # s without acceptance before the filter resets
+    output_frame: odom       # docking server fixed_frame (navigation.yaml)
+    publish_markers: true    # RViz debugging on cart_leg_detector/markers
