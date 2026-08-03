@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Single-terminal mapping stack (lidar + IMU SLAM, no wheel encoders).
+# Single-terminal mapping stack (lidar SLAM over wheel+IMU EKF odometry).
 #
 # This is the launch-file version of slam_imu.sh, so the whole mapping stack
 # starts (and stops, on one Ctrl-C) with a single command:
@@ -31,7 +31,8 @@
 # Pipeline:
 #   RPLIDAR A3 --360 deg--> /scan_raw
 #   angle_laser_filter --keep +/-90 deg--> /scan   (drops the rear; battery)
-#   rf2o_laser_odometry --(odom->base_footprint)--> motion from scan matching
+#   robot_localization EKF --(odom->base_footprint)--> wheel odom + IMU fusion
+#   rf2o_laser_odometry --> /odom_rf2o              (topic only, for comparison)
 #   mpu6050_imu --> /imu/data                       (published, not owning TF)
 #   slam_toolbox --(map->odom)--> builds the map
 #   micro_ros_agent <--serial--> Teensy 4.1         (bridges /cmd_vel to motors)
@@ -39,14 +40,23 @@
 #
 # The micro-ROS agent is what lets teleop actually move the robot: teleop_keyboard.py
 # publishes /cmd_vel, the agent forwards it over serial to the Teensy firmware
-# (controlCallback in main.cpp), which drives the AK10-9 motors. The Teensy only
-# publishes odom/unfiltered as a TOPIC (not a TF), so it does not fight rf2o for
-# odom->base_footprint. Set micro_ros:=false if you push the robot by hand instead.
+# (controlCallback in main.cpp), which drives the AK10-9 motors. The Teensy
+# publishes wheel odometry from the AK10-9 encoders on odom/unfiltered as a
+# TOPIC (not a TF); the EKF below fuses it with the IMU and owns
+# odom->base_footprint.
 #
-# WHY rf2o: with no wheel encoders there is no odometry, so slam_toolbox would
-# never see the minimum_travel_distance needed to add a scan. rf2o derives real
-# x/y/yaw by matching consecutive (now 180 deg) scans and owns odom->base_footprint.
-# The IMU only publishes /imu/data (publish_odom_tf:=false) so the two do not fight.
+# WHY the EKF owns the odom TF (and not rf2o anymore): rf2o scan-matching
+# breaks whenever the lidar view degenerates -- most importantly with cart
+# legs at point-blank range while docking under a cart -- which is exactly
+# when downstream consumers (docking server, slam) need steady odometry.
+# Wheel+IMU dead reckoning does not care what the lidar sees. rf2o still runs
+# (rf2o:=false disables it) but only publishes the /odom_rf2o topic, so the
+# two odometry sources can be compared without fighting over the TF.
+#
+# CAVEAT hand-push mapping: with micro_ros:=false there is no odom/unfiltered,
+# so the EKF has no velocity input and the odom TF goes stale. The AK10-9s
+# back-drive and their encoders still count when pushed, so keep the agent
+# running (micro_ros:=true) even for hand-push sessions.
 #
 # Do NOT run this alongside the stock linorobot2 bringup -- its EKF also owns
 # odom->base_footprint and the two would conflict.
@@ -75,6 +85,9 @@ def generate_launch_description():
     )
     default_slam_params = PathJoinSubstitution(
         [FindPackageShare('linorobot2_navigation'), 'config', 'slam.yaml']
+    )
+    ekf_config_path = PathJoinSubstitution(
+        [FindPackageShare('linorobot2_base'), 'config', 'ekf.yaml']
     )
 
     lidar_port = LaunchConfiguration('lidar_port')
@@ -120,6 +133,13 @@ def generate_launch_description():
             name='map_viewer_path',
             default_value='/home/jetson1/Desktop/map_viewer.py',
             description='Path to the map_viewer.py web viewer script'
+        ),
+        DeclareLaunchArgument(
+            name='rf2o',
+            default_value='true',
+            description='Run rf2o laser odometry (topic-only, /odom_rf2o) so it '
+                        'can be compared against the EKF wheel+IMU odometry. '
+                        'Set false once the EKF is proven.'
         ),
         DeclareLaunchArgument(
             name='slam',
@@ -175,8 +195,13 @@ def generate_launch_description():
             ],
         ),
 
-        # IMU: publishes /imu/data only. rf2o owns odom->base_footprint, so the
-        # IMU must NOT publish its own odom TF (they would conflict).
+        # IMU: publishes /imu/data only. The EKF owns odom->base_footprint, so
+        # the IMU must NOT publish its own odom TF (they would conflict).
+        # NOTE: the Teensy firmware also publishes imu/data IF it finds an
+        # MPU6050 on its own bus (main.cpp, imu.ok()). The IMU is wired to the
+        # Jetson, so that path stays dormant -- but after any wiring change,
+        # verify `ros2 topic info /imu/data --verbose` shows exactly ONE
+        # publisher, or the EKF input is corrupted.
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(PathJoinSubstitution(
                 [FindPackageShare('mpu6050_imu'), 'launch', 'imu.launch.py']
@@ -184,8 +209,25 @@ def generate_launch_description():
             launch_arguments={'publish_odom_tf': 'false'}.items()
         ),
 
-        # rf2o laser odometry: matches consecutive (180 deg) scans -> odom TF.
+        # EKF (robot_localization): fuses Teensy wheel odometry (odom/unfiltered,
+        # vx/vy/vyaw) with the IMU (vyaw) per linorobot2_base/config/ekf.yaml and
+        # owns odom->base_footprint. Output remapped to /odom, which Nav2's
+        # velocity smoother and docking server already expect.
         Node(
+            package='robot_localization',
+            executable='ekf_node',
+            name='ekf_filter_node',
+            output='screen',
+            parameters=[ekf_config_path],
+            remappings=[('odometry/filtered', 'odom')],
+        ),
+
+        # rf2o laser odometry: matches consecutive (180 deg) scans. Demoted to
+        # topic-only (/odom_rf2o) for A/B comparison against the EKF -- it must
+        # NOT publish TF, and it glitches under a cart (legs at point-blank
+        # range), which is why the EKF took over. Disable with rf2o:=false.
+        Node(
+            condition=IfCondition(LaunchConfiguration('rf2o')),
             package='rf2o_laser_odometry',
             executable='rf2o_laser_odometry_node',
             name='rf2o_laser_odometry',
@@ -193,7 +235,7 @@ def generate_launch_description():
             parameters=[{
                 'laser_scan_topic': '/scan',
                 'odom_topic': '/odom_rf2o',
-                'publish_tf': True,
+                'publish_tf': False,
                 'base_frame_id': 'base_footprint',
                 'odom_frame_id': 'odom',
                 'init_pose_from_topic': '',
